@@ -1,8 +1,6 @@
-pandas==2.2.0
-numpy
-holidays
 google-cloud-bigquery
-google-auth
-db-dtypes
 google-cloud-bigquery-storage
 pyarrow
+pandas
+numpy
+holidays
