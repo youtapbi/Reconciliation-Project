@@ -1,6 +1,5 @@
 # ==============================================================================
-# SCRIPT SETTLEMENT MASTER - VERSION 15.8 (GitHub Actions)
-# Dikonversi dari Google Colab ke GitHub Actions Automation
+# SCRIPT SETTLEMENT MASTER - VERSION 15.8 (GitHub Actions + BigQuery Storage API)
 # ==============================================================================
 
 import pandas as pd
@@ -543,27 +542,27 @@ class YoutapSettlementEngine:
 # ==============================================================================
 print("⏳ Menarik Data dari BigQuery...")
 print("  📥 Query: DATA_YTI_BASE (settlement + recon joins)...")
-df_b = client.query(QUERY_SETTLE).to_dataframe(create_bqstorage_client=False)
+df_b = client.query(QUERY_SETTLE).to_dataframe()
 print(f"    → {len(df_b)} rows")
 
 print("  📥 Query: Voucher data...")
-df_v = client.query(QUERY_VOUCHER).to_dataframe(create_bqstorage_client=False)
+df_v = client.query(QUERY_VOUCHER).to_dataframe()
 print(f"    → {len(df_v)} rows")
 
 print("  📥 Query: Bank accounts...")
-df_k = client.query(QUERY_BANK).to_dataframe(create_bqstorage_client=False)
+df_k = client.query(QUERY_BANK).to_dataframe()
 print(f"    → {len(df_k)} rows")
 
 print("  📥 Query: OPS Balance...")
-df_o = client.query(QUERY_OPS).to_dataframe(create_bqstorage_client=False)
+df_o = client.query(QUERY_OPS).to_dataframe()
 print(f"    → {len(df_o)} rows")
 
 print("  📥 Query: FIRST_TRX (dari DATA_YTI_BASE)...")
-df_ft_bq = client.query(QUERY_FIRST_TRX).to_dataframe(create_bqstorage_client=False)
+df_ft_bq = client.query(QUERY_FIRST_TRX).to_dataframe()
 print(f"    → {len(df_ft_bq)} rows")
 
 print("  📥 Query: TRX_00 (hanya Senin-Jumat)...")
-df_trx00_bq = client.query(QUERY_TRX_00).to_dataframe(create_bqstorage_client=False)
+df_trx00_bq = client.query(QUERY_TRX_00).to_dataframe()
 print(f"    → {len(df_trx00_bq)} rows")
 
 print("\n⏳ Memproses Settlement V15.8...")
@@ -600,8 +599,8 @@ if not df_final.empty:
         else:
             print(f"   ⚠️ Peringatan saat pembersihan data lama: {e}")
 
-    # 2. Persiapan Data (Bypass PyArrow dan sinkronisasi tipe data)
-    print("   ✓ Mempersiapkan bypass PyArrow dan sinkronisasi tipe data...")
+    # 2. Persiapan Data (sinkronisasi tipe data)
+    print("   ✓ Mempersiapkan sinkronisasi tipe data...")
     df_final['BALANCE_DATE'] = pd.to_datetime(df_final['BALANCE_DATE']).dt.date
     df_final['ACCOUNT_ID'] = pd.to_numeric(df_final['ACCOUNT_ID'], errors='coerce').fillna(0).astype('int64').astype(str)
     df_final['BANK_ACCOUNT_NUMBER'] = df_final['BANK_ACCOUNT_NUMBER'].astype(str).str.replace(r'\.0$', '', regex=True).replace('nan', '')
