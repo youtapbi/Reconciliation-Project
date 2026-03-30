@@ -19,20 +19,20 @@ client = bigquery.Client(project=PROJECT_ID)
 # STEP 1: DAFTAR HARI LIBUR NASIONAL 2026
 # ==============================================================================
 manual_holidays = [
-    datetime(2026, 1, 1).date(),   # Tahun Baru
-    datetime(2026, 1, 16).date(),
-    datetime(2026, 2, 17).date(),  # Imlek
-    datetime(2026, 3, 19).date(),
-    datetime(2026, 3, 21).date(),
-    datetime(2026, 3, 22).date(),
-    datetime(2026, 4, 3).date(),
-    datetime(2026, 5, 1).date(),   # Hari Buruh
-    datetime(2026, 5, 14).date(),
-    datetime(2026, 5, 27).date(),
-    datetime(2026, 5, 31).date(),
-    datetime(2026, 6, 1).date(),
-    datetime(2026, 8, 17).date(),  # HUT RI
-    datetime(2026, 12, 25).date(), # Natal
+    datetime(2026, 1, 1).date(),   # Tahun Baru Masehi
+    datetime(2026, 1, 16).date(),  # Isra Mikraj Nabi Muhammad SAW
+    datetime(2026, 2, 17).date(),  # Tahun Baru Imlek 2577 Kongzili
+    datetime(2026, 3, 19).date(),  # Hari Suci Nyepi (Tahun Baru Saka 1948)
+    datetime(2026, 3, 21).date(),  # Hari Raya Idul Fitri 1447 H 
+    datetime(2026, 3, 22).date(),  # Hari Raya Idul Fitri 1447 H
+    datetime(2026, 4, 3).date(),   # Wafat Yesus Kristus
+    datetime(2026, 5, 1).date(),   # Hari Buruh Internasional
+    datetime(2026, 5, 14).date(),  # Kenaikan Yesus Kristus
+    datetime(2026, 5, 27).date(),  # Hari Raya Idul Adha 1447 H
+    datetime(2026, 5, 31).date(),  # Hari Raya Waisak 2570 BE
+    datetime(2026, 6, 1).date(),   # Hari Lahir Pancasila
+    datetime(2026, 8, 17).date(),  # Hari Kemerdekaan Republik Indonesia
+    datetime(2026, 12, 25).date(), # Hari Raya Natal
 ]
 
 # ==============================================================================
@@ -384,13 +384,12 @@ class YoutapSettlementEngine:
         final['BALANCE'] = final['BALANCE'].fillna(0.0)
         final['MDR_RATE'] = final.groupby('ACCOUNT_ID')['MDR_RATE'].ffill().bfill().fillna(0.007)
 
-        df_trx00['TRX_DATE_PLUS1'] = df_trx00['TRX_DATE_ONLY'].apply(lambda d: d + timedelta(days=1))
         final = final.merge(df_trx00,
                             left_on=['ACCOUNT_ID','BALANCE_DATE_PLUS1'],
-                            right_on=['ACCOUNT_ID','TRX_DATE_PLUS1'], how='left')
+                            right_on=['ACCOUNT_ID','TRX_DATE_ONLY'], how='left')
 
         final['TRX_00_AMT'] = pd.to_numeric(final['TRX_00_AMT'], errors='coerce').fillna(0.0)
-        final['BALANCE'] = final['BALANCE'] + final['TRX_00_AMT']
+        final['BALANCE'] = final['BALANCE'] - final['TRX_00_AMT']
 
         final['LAST_WORKING_DAY'] = final['BALANCE_DATE_PLUS1'].apply(lambda d: self._get_last_working_day(d))
 
