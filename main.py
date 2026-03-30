@@ -245,23 +245,12 @@ WITH merchants AS (
     FROM `youtap-indonesia-bi.summary.merchants` sm
 )
 SELECT
-    txn_date,
+    DATE(txn_date) AS TRX_DATE,
     a.account_id,
     SUM(
         (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
         - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)
-    ) AS amount,
-    ROUND(SUM(
-        ((CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
-        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)) * sm.mdr_rate
-    )) AS mdr_amount,
-    ROUND(SUM(
-        (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
-        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)
-    ) - SUM(
-        ((CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
-        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)) * sm.mdr_rate
-    )) AS nett_amount
+    ) AS amount
 FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_report_hourly` a
 LEFT JOIN merchants sm ON a.account_id = sm.account_id
 WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
