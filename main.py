@@ -243,23 +243,29 @@ WITH merchants AS (
             ELSE 0.007
         END AS mdr_rate
     FROM `youtap-indonesia-bi.summary.merchants` sm
+),
+ranked_trx AS (
+    SELECT
+        a.txn_date,
+        a.account_id,
+        (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
+        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END) AS amount,
+        ROW_NUMBER() OVER (PARTITION BY DATE(a.txn_date), a.account_id ORDER BY a.txn_date ASC) AS rn
+    FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_report_hourly` a
+    LEFT JOIN merchants sm ON a.account_id = sm.account_id
+    WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+      AND TIME(a.txn_date) BETWEEN '00:00:00' AND '00:01:00'
+      AND EXTRACT(DAYOFWEEK FROM DATE(a.txn_date)) BETWEEN 2 AND 6
+      AND sm.vendor_id != 1602
+      AND sm.account_id NOT IN (367540, 367620, 287527)
 )
 SELECT
     DATE(txn_date) AS TRX_DATE,
-    a.account_id,
-    SUM(
-        (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
-        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)
-    ) AS amount
-FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_report_hourly` a
-LEFT JOIN merchants sm ON a.account_id = sm.account_id
-WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
-  AND TIME(a.txn_date) BETWEEN '00:00:00' AND '00:01:00'
-  AND EXTRACT(DAYOFWEEK FROM DATE(a.txn_date)) BETWEEN 2 AND 6
-  AND sm.vendor_id != 1602
-  AND sm.account_id NOT IN (367540, 367620, 287527)
+    account_id,
+    SUM(amount) AS amount
+FROM ranked_trx
+WHERE rn = 1
 GROUP BY 1, 2
-QUALIFY ROW_NUMBER() OVER (PARTITION BY DATE(txn_date), account_id ORDER BY txn_date ASC) = 1
 """
 
 # ==============================================================================
