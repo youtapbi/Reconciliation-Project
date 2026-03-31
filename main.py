@@ -19,20 +19,20 @@ client = bigquery.Client(project=PROJECT_ID)
 # STEP 1: DAFTAR HARI LIBUR NASIONAL 2026
 # ==============================================================================
 manual_holidays = [
-    datetime(2026, 1, 1).date(),   # Tahun Baru Masehi
-    datetime(2026, 1, 16).date(),  # Isra Mikraj Nabi Muhammad SAW
-    datetime(2026, 2, 17).date(),  # Tahun Baru Imlek 2577 Kongzili
-    datetime(2026, 3, 19).date(),  # Hari Suci Nyepi (Tahun Baru Saka 1948)
-    datetime(2026, 3, 21).date(),  # Hari Raya Idul Fitri 1447 H 
-    datetime(2026, 3, 22).date(),  # Hari Raya Idul Fitri 1447 H
-    datetime(2026, 4, 3).date(),   # Wafat Yesus Kristus
-    datetime(2026, 5, 1).date(),   # Hari Buruh Internasional
-    datetime(2026, 5, 14).date(),  # Kenaikan Yesus Kristus
-    datetime(2026, 5, 27).date(),  # Hari Raya Idul Adha 1447 H
-    datetime(2026, 5, 31).date(),  # Hari Raya Waisak 2570 BE
-    datetime(2026, 6, 1).date(),   # Hari Lahir Pancasila
-    datetime(2026, 8, 17).date(),  # Hari Kemerdekaan Republik Indonesia
-    datetime(2026, 12, 25).date(), # Hari Raya Natal
+    datetime(2026, 1, 1).date(),   # Tahun Baru
+    datetime(2026, 1, 16).date(),
+    datetime(2026, 2, 17).date(),  # Imlek
+    datetime(2026, 3, 19).date(),
+    datetime(2026, 3, 21).date(),
+    datetime(2026, 3, 22).date(),
+    datetime(2026, 4, 3).date(),
+    datetime(2026, 5, 1).date(),   # Hari Buruh
+    datetime(2026, 5, 14).date(),
+    datetime(2026, 5, 27).date(),
+    datetime(2026, 5, 31).date(),
+    datetime(2026, 6, 1).date(),
+    datetime(2026, 8, 17).date(),  # HUT RI
+    datetime(2026, 12, 25).date(), # Natal
 ]
 
 # ==============================================================================
@@ -222,49 +222,23 @@ QUALIFY ROW_NUMBER() OVER (PARTITION BY DATE(txn_date), account_id ORDER BY txn_
 
 QUERY_TRX_00 = """
 WITH merchants AS (
-    SELECT sm.*,
-        CASE
-            WHEN sm.account_id IN (89236,90181,88552,88116,65440,2553,2568,73707,87227,
-                                  4194,82784,82947,86202,86989,85961,86015,86034,86275,
-                                  86288,86473,86480,86506,86513,86759,86948,94399,86738,
-                                  51873,113441,119398,117910,121980,140668,142342,147566,
-                                  148766,150562,154443,157985,302966,302155) THEN 0
-            WHEN sm.account_id = 128013 THEN 0.015
-            WHEN referral_code_acquisition = '98ENTP062' THEN 0.02
-            WHEN referral_code_acquisition = '99ENTP017' THEN 0.012
-            WHEN referral_code_acquisition = '99ENTP018' THEN 0.012
-            WHEN referral_code_acquisition = '98ENTP029' THEN 0.017
-            WHEN referral_code_acquisition = '98ENTP011' THEN 0.006
-            WHEN referral_code_acquisition = '98ENTP017' THEN 0.006
-            WHEN referral_code_acquisition = '99ENTP003' THEN 0.01
-            WHEN referral_code_acquisition = '98ENTP026' THEN 0.015
-            WHEN referral_code_acquisition = '98ENTP032' THEN 0.017
-            WHEN referral_code_acquisition = '98ENTP014' THEN 0.013
-            ELSE 0.007
-        END AS mdr_rate
+    SELECT sm.*
     FROM `youtap-indonesia-bi.summary.merchants` sm
-),
-ranked_trx AS (
-    SELECT
-        a.txn_date,
-        a.account_id,
-        (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
-        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END) AS amount,
-        ROW_NUMBER() OVER (PARTITION BY DATE(a.txn_date), a.account_id ORDER BY a.txn_date ASC) AS rn
-    FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_report_hourly` a
-    LEFT JOIN merchants sm ON a.account_id = sm.account_id
-    WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
-      AND TIME(a.txn_date) BETWEEN '00:00:00' AND '00:01:00'
-      AND EXTRACT(DAYOFWEEK FROM DATE(a.txn_date)) BETWEEN 2 AND 6
-      AND sm.vendor_id != 1602
-      AND sm.account_id NOT IN (367540, 367620, 287527)
 )
 SELECT
-    DATE(txn_date) AS TRX_DATE,
-    account_id,
-    SUM(amount) AS amount
-FROM ranked_trx
-WHERE rn = 1
+    DATE(txn_date) AS trx_date,
+    a.account_id,
+    SUM(
+        (CASE WHEN a.txn_type = 'Customer Purchase' THEN a.amt ELSE 0 END)
+        - (CASE WHEN a.txn_type = 'Emoney Reversal' THEN a.amt ELSE 0 END)
+    ) AS amount
+FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_report_hourly` a
+LEFT JOIN merchants sm ON a.account_id = sm.account_id
+WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+  AND TIME(a.txn_date) BETWEEN '00:00:00' AND '00:01:01'
+  AND EXTRACT(DAYOFWEEK FROM DATE(a.txn_date)) BETWEEN 2 AND 6
+  AND sm.vendor_id != 1602
+  AND sm.account_id NOT IN (367540, 367620, 287527)
 GROUP BY 1, 2
 """
 
@@ -410,12 +384,13 @@ class YoutapSettlementEngine:
         final['BALANCE'] = final['BALANCE'].fillna(0.0)
         final['MDR_RATE'] = final.groupby('ACCOUNT_ID')['MDR_RATE'].ffill().bfill().fillna(0.007)
 
+        df_trx00['TRX_DATE_PLUS1'] = df_trx00['TRX_DATE_ONLY'].apply(lambda d: d + timedelta(days=1))
         final = final.merge(df_trx00,
                             left_on=['ACCOUNT_ID','BALANCE_DATE_PLUS1'],
-                            right_on=['ACCOUNT_ID','TRX_DATE_ONLY'], how='left')
+                            right_on=['ACCOUNT_ID','TRX_DATE_PLUS1'], how='left')
 
         final['TRX_00_AMT'] = pd.to_numeric(final['TRX_00_AMT'], errors='coerce').fillna(0.0)
-        final['BALANCE'] = final['BALANCE'] - final['TRX_00_AMT']
+        final['BALANCE'] = final['BALANCE'] + final['TRX_00_AMT']
 
         final['LAST_WORKING_DAY'] = final['BALANCE_DATE_PLUS1'].apply(lambda d: self._get_last_working_day(d))
 
