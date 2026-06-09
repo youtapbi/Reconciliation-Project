@@ -674,7 +674,7 @@ if not df_final.empty:
 
     # 3. Upload Data Baru
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",
+        write_disposition="WRITE_TRUNCATE",
         source_format=bigquery.SourceFormat.CSV,
         skip_leading_rows=1,
         autodetect=False,
