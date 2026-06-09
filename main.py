@@ -94,52 +94,115 @@ DATA_YTI_BASE AS (
         FROM `youtap-indonesia-bi.datawarehouses.yti_settlement_mcd_report_hourly`
         WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 65 DAY)
     ) mcd ON st.trx_id = CAST(mcd.yt_ref AS STRING)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_msme_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) b ON b.ref_no = a.issuer_txn_ref AND DATE(a.txn_date) = DATE(b.transaction_date)
     LEFT JOIN (
-        SELECT transaction_date,
-            REGEXP_REPLACE(sequence_id, r'_payment', '') AS approval_code,
-            SUM(transaction_amount) AS transaction_amount,
-            SUM(mdr) AS mdr, SUM(net_amount) AS net_amount
-        FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_mcd_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-        GROUP BY 1,2
-    ) c ON c.approval_code = mcd.approval_code AND DATE(a.txn_date) = DATE(c.transaction_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_expansion_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) d ON d.ref_no = a.issuer_txn_ref AND DATE(a.txn_date) = DATE(d.transaction_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_bni_bank_report`
-        WHERE DATE(trx_datetime) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) e ON LPAD(e.reff_id, 12, '0') = a.yti_txn_extref AND DATE(a.txn_date) = DATE(e.trx_datetime)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_shopeepay_report`
-        WHERE DATE(create_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) f ON f.transaction_id = a.yti_txn_extref AND DATE(a.txn_date) = DATE(f.create_time)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_mandiri_bank_report`
-        WHERE DATE(trxdate) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) g ON g.refference_number = a.yti_txn_extref AND DATE(a.txn_date) = DATE(g.trxdate)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_ovo_report`
-        WHERE DATE(transactiondate) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) h ON RIGHT(h.merchantinvoice, 18) = a.issuer_txn_ref AND DATE(a.txn_date) = DATE(h.transactiondate)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_kredivo_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) i ON i.transaction_id = a.yti_txn_extref AND DATE(a.txn_date) = DATE(i.transaction_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_indodana_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) j ON j.transidmerchant = a.yti_txn_extref AND DATE(a.txn_date) = DATE(j.transaction_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_bca_bank_file_report`
-        WHERE DATE(payment_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) k ON k.reference_no = a.yti_txn_extref AND DATE(a.txn_date) = DATE(k.payment_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_btn_bank_file_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) l ON LPAD(CAST(l.retrieval_reference_number AS STRING), 12, '0') = a.yti_txn_extref
-        AND DATE(a.txn_date) = DATE(l.transaction_date)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_ottopay_bank_file_report`
-        WHERE DATE(transaction_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) m ON m.issuer_rrn = a.yti_txn_extref AND DATE(a.txn_date) = DATE(m.transaction_time)
-    LEFT JOIN (SELECT * FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_ottopay_dashboard_bank_file_report`
-        WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
-    ) n ON n.reference_number = a.yti_txn_extref AND DATE(a.txn_date) = DATE(n.transaction_date)
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_msme_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) b
+  ON b.ref_no = a.issuer_txn_ref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(b.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT
+        transaction_date,
+        REGEXP_REPLACE(sequence_id, r'_payment', '') AS approval_code,
+        SUM(transaction_amount) AS transaction_amount,
+        SUM(mdr) AS mdr,
+        SUM(net_amount) AS net_amount
+    FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_mcd_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+    GROUP BY 1, 2
+) c
+  ON c.approval_code = mcd.approval_code
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(c.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_linkaja_expansion_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) d
+  ON d.ref_no = a.issuer_txn_ref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(d.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_bni_bank_report`
+    WHERE DATE(trx_datetime) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) e
+  ON LPAD(e.reff_id, 12, '0') = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(e.trx_datetime), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_shopeepay_report`
+    WHERE DATE(create_time) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) f
+  ON f.transaction_id = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(f.create_time), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_mandiri_bank_report`
+    WHERE DATE(trxdate) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) g
+  ON g.refference_number = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(g.trxdate), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_ovo_report`
+    WHERE DATE(transactiondate) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) h
+  ON RIGHT(h.merchantinvoice, 18) = a.issuer_txn_ref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(h.transactiondate), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_kredivo_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) i
+  ON i.transaction_id = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(i.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_indodana_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) j
+  ON j.transidmerchant = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(j.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_bca_bank_file_report`
+    WHERE DATE(payment_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) k
+  ON k.reference_no = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(k.payment_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_btn_bank_file_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) l
+  ON LPAD(CAST(l.retrieval_reference_number AS STRING), 12, '0') = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(l.transaction_date), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_ottopay_bank_file_report`
+    WHERE DATE(transaction_time) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) m
+  ON m.issuer_rrn = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(m.transaction_time), DAY)) <= 1
+
+LEFT JOIN (
+    SELECT *
+    FROM `youtap-indonesia-bi.datawarehouses.recon_issuer_ottopay_dashboard_bank_file_report`
+    WHERE DATE(transaction_date) >= DATE_SUB(CURRENT_DATE('Asia/Jakarta'), INTERVAL 16 DAY)
+) n
+  ON n.reference_number = a.yti_txn_extref
+  AND ABS(DATE_DIFF(DATE(a.txn_date), DATE(n.transaction_date), DAY)) <= 1
     WHERE DATE(a.txn_date) >= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)
       AND sm.vendor_id != 1602
       AND sm.account_id NOT IN (367540, 367620, 287527)
